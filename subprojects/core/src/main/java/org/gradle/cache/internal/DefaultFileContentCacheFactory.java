@@ -20,7 +20,6 @@ import org.gradle.api.internal.changedetection.state.FileSnapshot;
 import org.gradle.api.internal.changedetection.state.FileSystemSnapshotter;
 import org.gradle.api.internal.changedetection.state.InMemoryCacheDecoratorFactory;
 import org.gradle.api.internal.tasks.execution.TaskOutputChangesListener;
-import org.gradle.api.invocation.Gradle;
 import org.gradle.cache.CacheRepository;
 import org.gradle.cache.FileLockManager;
 import org.gradle.cache.PersistentCache;
@@ -47,12 +46,12 @@ public class DefaultFileContentCacheFactory implements FileContentCacheFactory, 
     private final PersistentCache cache;
     private final HashCodeSerializer hashCodeSerializer = new HashCodeSerializer();
 
-    public DefaultFileContentCacheFactory(ListenerManager listenerManager, FileSystemSnapshotter fileSystemSnapshotter, CacheRepository cacheRepository, InMemoryCacheDecoratorFactory inMemoryCacheDecoratorFactory, Gradle gradle) {
+    public DefaultFileContentCacheFactory(ListenerManager listenerManager, FileSystemSnapshotter fileSystemSnapshotter, CacheRepository cacheRepository, InMemoryCacheDecoratorFactory inMemoryCacheDecoratorFactory, Object scope) {
         this.listenerManager = listenerManager;
         this.fileSystemSnapshotter = fileSystemSnapshotter;
         this.inMemoryCacheDecoratorFactory = inMemoryCacheDecoratorFactory;
         cache = cacheRepository
-            .cache(gradle, "fileContent")
+            .cache(scope, "fileContent")
             .withDisplayName("file content cache")
             .withLockOptions(mode(FileLockManager.LockMode.None)) // Lock on demand
             .open();
@@ -66,10 +65,10 @@ public class DefaultFileContentCacheFactory implements FileContentCacheFactory, 
     @Override
     public <V> FileContentCache<V> newCache(String name, int normalizedCacheSize, final Calculator<? extends V> calculator, Serializer<V> serializer) {
         PersistentIndexedCacheParameters<HashCode, V> parameters = new PersistentIndexedCacheParameters<HashCode, V>(name, hashCodeSerializer, serializer)
-                .cacheDecorator(inMemoryCacheDecoratorFactory.decorator(normalizedCacheSize, true));
+            .cacheDecorator(inMemoryCacheDecoratorFactory.decorator(normalizedCacheSize, true));
         PersistentIndexedCache<HashCode, V> store = cache.createCache(parameters);
 
-        DefaultFileContentCache<V> cache = new DefaultFileContentCache<V>(name, fileSystemSnapshotter, store, calculator);
+        DefaultFileContentCache<V> cache = new DefaultFileContentCache<V>(fileSystemSnapshotter, store, calculator);
         listenerManager.addListener(cache);
         return cache;
     }
@@ -83,11 +82,9 @@ public class DefaultFileContentCacheFactory implements FileContentCacheFactory, 
         private final Map<File, V> cache = new ConcurrentHashMap<File, V>();
         private final FileSystemSnapshotter fileSystemSnapshotter;
         private final PersistentIndexedCache<HashCode, V> contentCache;
-        private final String name;
         private final Calculator<? extends V> calculator;
 
-        DefaultFileContentCache(String name, FileSystemSnapshotter fileSystemSnapshotter, PersistentIndexedCache<HashCode, V> contentCache, Calculator<? extends V> calculator) {
-            this.name = name;
+        DefaultFileContentCache(FileSystemSnapshotter fileSystemSnapshotter, PersistentIndexedCache<HashCode, V> contentCache, Calculator<? extends V> calculator) {
             this.fileSystemSnapshotter = fileSystemSnapshotter;
             this.contentCache = contentCache;
             this.calculator = calculator;
