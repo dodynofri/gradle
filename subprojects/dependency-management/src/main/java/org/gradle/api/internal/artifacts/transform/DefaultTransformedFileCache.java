@@ -190,11 +190,10 @@ public class DefaultTransformedFileCache implements TransformedFileCache, Stoppa
         Path relativePath = baseDir.relativize(files.get(0).toPath());
         if (relativePath.getNameCount() >= 2) {
             // touch output dir of accessed files so cache cleanup does not evict them
-            touch(baseDir.resolve(relativePath.getName(0)).resolve(relativePath.getName(1)));
+            touch(baseDir.resolve(relativePath.subpath(0, 2)));
         }
     }
 
-    // TODO marc #1085 copied from DirectoryBuildCacheService
     @SuppressWarnings("Since15")
     private static void touch(Path file) {
         try {
