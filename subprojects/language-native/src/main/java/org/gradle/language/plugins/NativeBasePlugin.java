@@ -155,20 +155,16 @@ public class NativeBasePlugin implements Plugin<ProjectInternal> {
                             // Determine which output to produce at development time.
                             final FileCollection outputs = binary.getOutputs();
                             Names names = ((ComponentWithNames) binary).getNames();
-                            tasks.createLater(names.getTaskName("assemble"), new Action<Task>() {
+                            Action<Task> dependOnOutputs = new Action<Task>() {
                                 @Override
                                 public void execute(Task task) {
                                     task.dependsOn(outputs);
                                 }
-                            });
+                            };
+                            tasks.createLater(names.getTaskName("assemble"), dependOnOutputs);
 
                             if (binary == ((ProductionComponent) component).getDevelopmentBinary().get()) {
-                                tasks.get(Task.class, LifecycleBasePlugin.ASSEMBLE_TASK_NAME).configure(new Action<Task>() {
-                                    @Override
-                                    public void execute(Task task) {
-                                        task.dependsOn(outputs);
-                                    }
-                                });
+                                tasks.get(Task.class, LifecycleBasePlugin.ASSEMBLE_TASK_NAME).configure(dependOnOutputs);
                             }
                         }
                     });
@@ -214,20 +210,18 @@ public class NativeBasePlugin implements Plugin<ProjectInternal> {
                 executable.getDebuggerExecutableFile().set(linkFile);
 
                 if (executable.isDebuggable() && executable.isOptimized() && toolProvider.requiresDebugBinaryStripping()) {
-                    final String binaryType = "exe";
                     Provider<RegularFile> strippedLocation = buildDirectory.file(providers.provider(new Callable<String>() {
                         @Override
                         public String call() {
-                            return toolProvider.getExecutableName(binaryType + "/" + names.getDirName() + "stripped/" + executable.getBaseName().get());
+                            return toolProvider.getExecutableName("exe/" + names.getDirName() + "stripped/" + executable.getBaseName().get());
                         }
                     }));
-
                     TaskProvider<StripSymbols> stripSymbols = stripSymbols(link, names, tasks, toolChain, targetPlatform, strippedLocation);
 
                     Provider<RegularFile> symbolLocation = buildDirectory.file(providers.provider(new Callable<String>() {
                         @Override
                         public String call() {
-                            return toolProvider.getExecutableSymbolFileName(binaryType + "/" + names.getDirName() + "stripped/" + executable.getBaseName().get());
+                            return toolProvider.getExecutableSymbolFileName("exe/" + names.getDirName() + "stripped/" + executable.getBaseName().get());
                         }
                     }));
                     TaskProvider<ExtractSymbols> extractSymbols = extractSymbols(link, names, tasks, toolChain, targetPlatform, symbolLocation);
@@ -322,11 +316,10 @@ public class NativeBasePlugin implements Plugin<ProjectInternal> {
                 library.getLinkTask().set(link);
 
                 if (library.isDebuggable() && library.isOptimized() && toolProvider.requiresDebugBinaryStripping()) {
-                    final String binaryType = "lib";
                     Provider<RegularFile> strippedLocation = buildDirectory.file(providers.provider(new Callable<String>() {
                         @Override
                         public String call() {
-                            return toolProvider.getExecutableName(binaryType + "/" + names.getDirName() + "stripped/" + library.getBaseName().get());
+                            return toolProvider.getSharedLibraryName("lib/" + names.getDirName() + "stripped/" + library.getBaseName().get());
                         }
                     }));
 
@@ -335,7 +328,7 @@ public class NativeBasePlugin implements Plugin<ProjectInternal> {
                     Provider<RegularFile> symbolLocation = buildDirectory.file(providers.provider(new Callable<String>() {
                         @Override
                         public String call() {
-                            return toolProvider.getExecutableSymbolFileName(binaryType + "/" + names.getDirName() + "stripped/" + library.getBaseName().get());
+                            return toolProvider.getLibrarySymbolFileName("lib/" + names.getDirName() + "stripped/" + library.getBaseName().get());
                         }
                     }));
                     TaskProvider<ExtractSymbols> extractSymbols = extractSymbols(link, names, tasks, toolChain, targetPlatform, symbolLocation);
@@ -346,7 +339,6 @@ public class NativeBasePlugin implements Plugin<ProjectInternal> {
                             return stripSymbols.getOutputFile().get();
                         }
                     });
-
                     library.getRuntimeFile().set(strippedLinkFile);
                     library.getLinkFile().set(strippedLinkFile);
                     library.getOutputs().from(extractSymbols.map(new Transformer<RegularFile, ExtractSymbols>() {
