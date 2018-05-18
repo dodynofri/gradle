@@ -563,6 +563,11 @@ public class DefaultTaskContainer extends DefaultTaskCollection<Task> implements
         public void visitDependencies(TaskDependencyResolveContext context) {
             context.add(get());
         }
+
+        @Override
+        public String toString() {
+            return String.format("provider(task %s, %s)", name, type);
+        }
     }
 
     private class TaskCreatingProvider<T extends Task> extends DefaultTaskProvider<T> {

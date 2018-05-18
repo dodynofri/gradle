@@ -64,4 +64,9 @@ public abstract class AbstractMappingProvider<OUT, IN> extends AbstractProvider<
             context.add(provider);
         }
     }
+
+    @Override
+    public String toString() {
+        return "transform(" + provider + ")";
+    }
 }
