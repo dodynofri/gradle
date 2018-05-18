@@ -43,11 +43,13 @@ import java.util.zip.ZipFile;
  * Determines the classpath for a module by looking for a '${module}-classpath.properties' resource with 'name' set to the name of the module.
  */
 public class DefaultModuleRegistry implements ModuleRegistry {
+    private final ClassLoader classLoader;
+    private final ClassPath additionalModuleClassPath;
     private final GradleInstallation gradleInstallation;
     private final Map<String, Module> modules = new HashMap<String, Module>();
     private final Map<String, Module> externalModules = new HashMap<String, Module>();
-    private final List<File> classpath = new ArrayList<File>();
-    private final Map<String, File> classpathJars = new LinkedHashMap<String, File>();
+    private List<File> classpath;
+    private Map<String, File> classpathJars;
 
     public DefaultModuleRegistry(@Nullable GradleInstallation gradleInstallation) {
         this(ClassPath.EMPTY, gradleInstallation);
@@ -58,19 +60,14 @@ public class DefaultModuleRegistry implements ModuleRegistry {
     }
 
     private DefaultModuleRegistry(ClassLoader classLoader, ClassPath additionalModuleClassPath, @Nullable GradleInstallation gradleInstallation) {
+        this.classLoader = classLoader;
+        this.additionalModuleClassPath = additionalModuleClassPath;
         this.gradleInstallation = gradleInstallation;
-
-        for (File classpathFile : new EffectiveClassPath(classLoader).plus(additionalModuleClassPath).getAsFiles()) {
-            classpath.add(classpathFile);
-            if (classpathFile.isFile() && !classpathJars.containsKey(classpathFile.getName())) {
-                classpathJars.put(classpathFile.getName(), classpathFile);
-            }
-        }
     }
 
     @Override
     public ClassPath getAdditionalClassPath() {
-        return gradleInstallation == null ? DefaultClassPath.of(classpath) : ClassPath.EMPTY;
+        return gradleInstallation == null ? DefaultClassPath.of(getClasspath()) : ClassPath.EMPTY;
     }
 
     public Module getExternalModule(String name) {
@@ -118,7 +115,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
             return module;
         }
         if (gradleInstallation == null) {
-            throw new UnknownModuleException(String.format("Cannot locate manifest for module '%s' in classpath: %s.", moduleName, classpath));
+            throw new UnknownModuleException(String.format("Cannot locate manifest for module '%s' in classpath: %s.", moduleName, getClasspath()));
         }
         throw new UnknownModuleException(String.format("Cannot locate JAR for module '%s' in distribution directory '%s'.", moduleName, gradleInstallation.getGradleHome()));
     }
@@ -196,7 +193,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
         suffixes.add(("/" + projectDirName + "/build/resources/main").replace('/', File.separatorChar));
         suffixes.add(("/" + projectDirName + "/build/generated-resources/main").replace('/', File.separatorChar));
         suffixes.add(("/" + projectDirName + "/build/generated-resources/test").replace('/', File.separatorChar));
-        for (File file : classpath) {
+        for (File file : getClasspath()) {
             if (file.isDirectory()) {
                 for (String suffix : suffixes) {
                     if (file.getAbsolutePath().endsWith(suffix)) {
@@ -247,7 +244,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
                 }
             }
         }
-        for (File file : classpath) {
+        for (File file : getClasspath()) {
             if (pattern.matcher(file.getName()).matches()) {
                 return file;
             }
@@ -256,7 +253,7 @@ public class DefaultModuleRegistry implements ModuleRegistry {
     }
 
     private File findDependencyJar(String module, String name) {
-        File jarFile = classpathJars.get(name);
+        File jarFile = getClasspathJars().get(name);
         if (jarFile != null) {
             return jarFile;
         }
@@ -270,6 +267,30 @@ public class DefaultModuleRegistry implements ModuleRegistry {
             }
         }
         throw new IllegalArgumentException(String.format("Cannot find JAR '%s' required by module '%s' using classpath or distribution directory '%s'", name, module, gradleInstallation.getGradleHome()));
+    }
+
+    private List<File> getClasspath() {
+        initClasspath();
+        return classpath;
+    }
+
+    private void initClasspath() {
+        if (classpath != null) {
+            return;
+        }
+        classpath = new ArrayList<File>();
+        classpathJars = new LinkedHashMap<String, File>();
+        for (File classpathFile : new EffectiveClassPath(classLoader).plus(additionalModuleClassPath).getAsFiles()) {
+            classpath.add(classpathFile);
+            if (classpathFile.isFile() && !classpathJars.containsKey(classpathFile.getName())) {
+                classpathJars.put(classpathFile.getName(), classpathFile);
+            }
+        }
+    }
+
+    private Map<String, File> getClasspathJars() {
+        initClasspath();
+        return classpathJars;
     }
 
     private class DefaultModule implements Module {
