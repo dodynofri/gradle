@@ -33,7 +33,8 @@ class RepoScriptBlockUtil {
         LIGHTBEND_IVY("https://repo.lightbend.com/lightbend/ivy-releases", System.getProperty('org.gradle.integtest.mirrors.lightbendivy'), "ivy"),
         SPRING_RELEASES('https://maven.springframework.org/release', System.getProperty('org.gradle.integtest.mirrors.springreleases'), 'maven'),
         SPRING_SNAPSHOTS('https://repo.spring.io/snapshot/', System.getProperty('org.gradle.integtest.mirrors.springsnapshots'), 'maven'),
-        RESTLET('https://maven.restlet.com', System.getProperty('org.gradle.integtest.mirrors.restlet'), 'maven')
+        RESTLET('https://maven.restlet.com', System.getProperty('org.gradle.integtest.mirrors.restlet'), 'maven'),
+        GRADLE('https://repo.gradle.org/gradle/repo', System.getProperty('org.gradle.integtest.mirrors.gradle'), 'maven')
 
         String originalUrl
         String mirrorUrl
@@ -93,6 +94,10 @@ class RepoScriptBlockUtil {
         }
     }
 
+    static String gradleRepositoryMirrorUrl() {
+        MirroredRepository.GRADLE.mirrorUrl
+    }
+
     static String jcenterRepositoryDefinition() {
         MirroredRepository.JCENTER.repositoryDefinition
     }
@@ -111,6 +116,10 @@ class RepoScriptBlockUtil {
 
     static String googleRepositoryDefinition() {
         MirroredRepository.GOOGLE.repositoryDefinition
+    }
+
+    static String gradleRepositoryDefintion() {
+        MirroredRepository.GRADLE.repositoryDefinition
     }
 
     static File createMirrorInitScript() {
